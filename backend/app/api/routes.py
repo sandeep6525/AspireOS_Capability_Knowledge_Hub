@@ -3,9 +3,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from ..core.db import get_db
-from ..core.security import verify_password, create_token
+from ..core.security import verify_password, create_token, hash_password
 from ..models import User, ContentItem, Source, Skill, Assessment, LearningPlan, Feedback, AuditLog
-from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, SourceOut, AdminContentOut, AuditLogOut
+from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, SourceOut, AdminContentOut, AuditLogOut, SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut, UserUpdateIn, PasswordUpdateIn
+
 from ..services.recommendations import stakeholder_feed, skill_gap_summary
 from ..services.ingestion import ingest_source
 from ..services.digests import build_digest
@@ -45,6 +46,25 @@ async def login(request: Request, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(current_user)):
     return user
+
+@router.patch("/me", response_model=UserOut)
+def update_me(body: UserUpdateIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    values = body.model_dump(exclude_unset=True)
+    for k, v in values.items():
+        setattr(user, k, v)
+    db.commit()
+    db.refresh(user)
+    return user
+
+@router.post("/me/password")
+def update_password(body: PasswordUpdateIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(401, "Incorrect current password")
+    if len(body.new_password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    user.password_hash = hash_password(body.new_password)
+    db.commit()
+    return {"status": "success"}
 
 
 @router.get("/feed", response_model=list[ContentOut])

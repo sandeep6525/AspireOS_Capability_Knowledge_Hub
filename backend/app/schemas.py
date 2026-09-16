@@ -19,6 +19,18 @@ class UserOut(BaseModel):
     name: str
     role: str
     locale: str
+    interests: list[str]
+    consent_analytics: bool
+
+class UserUpdateIn(BaseModel):
+    name: str | None = None
+    locale: str | None = None
+    interests: list[str] | None = None
+    consent_analytics: bool | None = None
+
+class PasswordUpdateIn(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class ContentOut(BaseModel):
