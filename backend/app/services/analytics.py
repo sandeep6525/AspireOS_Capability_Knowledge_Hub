@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from ..models import Assessment, Skill, ContentItem, Feedback, LearningPlan
 
 def get_skill_gaps_analytics(db: Session):
-    # Calculate max(0, target - current) per assessment and average by skill
-    gap_expr = func.greatest(0, Assessment.target_level - Assessment.current_level)
+    # Calculate max(0, target - effective) where effective = coalesce(verified, current)
+    effective_level = func.coalesce(Assessment.verified_level, Assessment.current_level)
+    gap_expr = func.greatest(0, Assessment.target_level - effective_level)
     results = (
         db.query(
             Assessment.skill_id,

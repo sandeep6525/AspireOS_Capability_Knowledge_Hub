@@ -14,6 +14,9 @@ export async function apiPut<T>(path:string, body: any):Promise<T>{const token=l
 export async function apiPost<T>(path:string, body: any):Promise<T>{const token=localStorage.getItem('token');const r=await fetch(`${BASE}${path}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(body)});if(!r.ok)throw new Error(`Request failed: ${r.status}`);return r.json()}
 export async function apiPatch<T>(path:string, body: any):Promise<T>{const token=localStorage.getItem('token');const r=await fetch(`${BASE}${path}`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(body)});if(!r.ok)throw new Error(`Request failed: ${r.status}`);return r.json()}
 
+export interface Evidence { id: number; user_id: number; skill_id: number; content_id: number | null; url: string; description: string; status: string; verifier_id: number | null; verified_at: string | null; created_at: string; }
+
+
 export interface SkillGapAnalytics { skill_id: number; skill_name: string; average_gap: number; }
 export interface ContentAnalytics { status: string; count: number; }
 export interface FeedbackAnalytics { total_feedback: number; useful_feedback: number; usefulness_percentage: number | null; }

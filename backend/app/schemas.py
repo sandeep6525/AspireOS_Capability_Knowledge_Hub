@@ -115,3 +115,26 @@ class LearningPlanAnalyticsOut(BaseModel):
     active_plan_count: int
     average_progress: float | None
 
+class EvidenceIn(BaseModel):
+    skill_id: int
+    content_id: int | None = None
+    url: HttpUrl
+    description: str = Field(min_length=1, max_length=2000)
+
+class EvidenceVerifyIn(BaseModel):
+    status: str = Field(pattern="^(verified|rejected)$")
+    verified_level: float | None = Field(default=None, ge=0, le=5)
+
+class EvidenceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    skill_id: int
+    content_id: int | None
+    url: str
+    description: str
+    status: str
+    verifier_id: int | None
+    verified_at: datetime | None
+    created_at: datetime
+

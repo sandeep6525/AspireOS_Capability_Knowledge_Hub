@@ -76,9 +76,25 @@ class Assessment(Base):
     skill_id: Mapped[int] = mapped_column(ForeignKey("skills.id"), index=True)
     current_level: Mapped[float] = mapped_column(Float)
     target_level: Mapped[float] = mapped_column(Float)
+    verified_level: Mapped[float | None] = mapped_column(Float, nullable=True)
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
     evidence_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    skill: Mapped[Skill] = relationship()
+
+
+class Evidence(Base):
+    __tablename__ = "evidence"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    skill_id: Mapped[int] = mapped_column(ForeignKey("skills.id"), index=True)
+    content_id: Mapped[int | None] = mapped_column(ForeignKey("content_items.id"), nullable=True)
+    url: Mapped[str] = mapped_column(String(1000))
+    description: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    verifier_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     skill: Mapped[Skill] = relationship()
 
 

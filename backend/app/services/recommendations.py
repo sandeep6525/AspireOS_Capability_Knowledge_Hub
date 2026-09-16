@@ -19,7 +19,13 @@ def stakeholder_feed(db: Session, user: User, limit: int = 30):
 
 def skill_gap_summary(db: Session, user_id: int):
     rows = db.scalars(select(Assessment).where(Assessment.user_id == user_id)).all()
+    
+    def calc_gap(a):
+        effective_level = a.verified_level if a.verified_level is not None else a.current_level
+        return round(max(0, a.target_level - effective_level), 2)
+        
     return [{"skill": a.skill.name, "current": a.current_level, "target": a.target_level,
-             "gap": round(max(0, a.target_level - a.current_level), 2), "confidence": a.confidence}
-            for a in sorted(rows, key=lambda x: x.target_level - x.current_level, reverse=True)]
+             "verified": a.verified_level, "effective": a.verified_level if a.verified_level is not None else a.current_level,
+             "gap": calc_gap(a), "confidence": a.confidence}
+            for a in sorted(rows, key=lambda x: calc_gap(x), reverse=True)]
 

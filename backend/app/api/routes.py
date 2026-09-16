@@ -4,8 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from ..core.db import get_db
 from ..core.security import verify_password, create_token, hash_password
-from ..models import User, ContentItem, Source, Skill, Assessment, LearningPlan, Feedback, AuditLog
-from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, SourceOut, AdminContentOut, AuditLogOut, SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut, UserUpdateIn, PasswordUpdateIn
+from ..models import User, ContentItem, Source, Skill, Assessment, LearningPlan, Feedback, AuditLog, Evidence
+from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, SourceOut, AdminContentOut, AuditLogOut, SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut, UserUpdateIn, PasswordUpdateIn, EvidenceIn, EvidenceOut, EvidenceVerifyIn
 
 from ..services.recommendations import stakeholder_feed, skill_gap_summary
 from ..services.ingestion import ingest_source
@@ -171,3 +171,59 @@ def analytics_feedback(db: Session = Depends(get_db), _: User = Depends(admin_us
 def analytics_learning_plans(db: Session = Depends(get_db), _: User = Depends(admin_user)):
     return get_learning_plans_analytics(db)
 
+@router.post("/evidence", response_model=EvidenceOut, status_code=201)
+def submit_evidence(body: EvidenceIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    if not db.get(Skill, body.skill_id):
+        raise HTTPException(404, "Skill not found")
+    if body.content_id and not db.get(ContentItem, body.content_id):
+        raise HTTPException(404, "Content item not found")
+        
+    evidence = Evidence(
+        user_id=user.id,
+        skill_id=body.skill_id,
+        content_id=body.content_id,
+        url=str(body.url),
+        description=body.description,
+        status="pending"
+    )
+    db.add(evidence)
+    db.commit()
+    db.refresh(evidence)
+    return evidence
+
+@router.get("/evidence", response_model=list[EvidenceOut])
+def get_evidence(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    if user.role == "admin":
+        return db.scalars(select(Evidence).order_by(Evidence.created_at.desc())).all()
+    return db.scalars(select(Evidence).where(Evidence.user_id == user.id).order_by(Evidence.created_at.desc())).all()
+
+from datetime import datetime, timezone
+
+@router.patch("/admin/evidence/{evidence_id}/verify", response_model=EvidenceOut)
+def verify_evidence(evidence_id: int, body: EvidenceVerifyIn, db: Session = Depends(get_db), admin: User = Depends(admin_user)):
+    evidence = db.get(Evidence, evidence_id)
+    if not evidence:
+        raise HTTPException(404, "Evidence not found")
+        
+    evidence.status = body.status
+    evidence.verifier_id = admin.id
+    evidence.verified_at = datetime.now(timezone.utc)
+    
+    if body.status == "verified" and body.verified_level is not None:
+        assessment = db.scalar(select(Assessment).where(Assessment.user_id == evidence.user_id, Assessment.skill_id == evidence.skill_id))
+        if assessment:
+            assessment.verified_level = body.verified_level
+        else:
+            assessment = Assessment(user_id=evidence.user_id, skill_id=evidence.skill_id, current_level=0, target_level=body.verified_level, verified_level=body.verified_level)
+            db.add(assessment)
+            
+    log = AuditLog(
+        actor_id=admin.id,
+        action=f"{body.status}_evidence",
+        target_type="evidence",
+        target_id=evidence.id
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(evidence)
+    return evidence

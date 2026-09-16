@@ -186,3 +186,136 @@ export function AdminAudit() {
     </>
   );
 }
+
+export function AdminEvidence() {
+  const [evidenceList, setEvidenceList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+
+  const fetchEvidence = () => {
+    setLoading(true);
+    api<any[]>('/evidence')
+      .then(data => setEvidenceList(data.filter(e => e.status === 'pending')))
+      .catch(e => setMessage({type: 'error', text: e.message}))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchEvidence();
+  }, []);
+
+  const handleVerify = async (id: number, status: 'verified' | 'rejected', level?: number) => {
+    try {
+      const payload: any = { status };
+      if (status === 'verified' && level !== undefined) {
+        payload.verified_level = level;
+      }
+      
+      const token = localStorage.getItem('token');
+      const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+      const r = await fetch(`${BASE}/admin/evidence/${id}/verify`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!r.ok) {
+        const errorData = await r.json();
+        throw new Error(errorData.detail || 'Failed to verify evidence');
+      }
+      
+      setMessage({type: 'success', text: `Evidence ${status} successfully.`});
+      fetchEvidence();
+    } catch (e: any) {
+      setMessage({type: 'error', text: e.message});
+    }
+  };
+
+  return (
+    <>
+      <header>
+        <div>
+          <p className="eyebrow">Admin</p>
+          <h1>Evidence Review</h1>
+          <p className="muted">Review pending evidence submissions and grant verified capability levels.</p>
+        </div>
+      </header>
+      <section className="panel" style={{margin: '2rem'}}>
+        {message && (
+          <div style={{ padding: '1rem', marginBottom: '1rem', borderLeft: `4px solid ${message.type === 'success' ? 'green' : 'red'}`, backgroundColor: message.type === 'success' ? '#e8f5e9' : '#ffebee' }}>
+            <p style={{ color: message.type === 'success' ? 'green' : 'red', margin: 0 }}>{message.text}</p>
+          </div>
+        )}
+        
+        {loading && <p>Loading pending evidence...</p>}
+        
+        {!loading && evidenceList.length === 0 && <p>No pending evidence to review.</p>}
+        
+        {!loading && evidenceList.length > 0 && (
+          <div className="table-responsive">
+            <table style={{width: '100%', textAlign: 'left'}}>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>User ID</th>
+                  <th>Skill ID</th>
+                  <th>Description</th>
+                  <th>URL</th>
+                  <th>Submitted At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {evidenceList.map(ev => (
+                  <tr key={ev.id}>
+                    <td>{ev.id}</td>
+                    <td>{ev.user_id}</td>
+                    <td>{ev.skill_id}</td>
+                    <td>{ev.description}</td>
+                    <td><a href={ev.url} target="_blank" rel="noreferrer">View Evidence</a></td>
+                    <td>{new Date(ev.created_at).toLocaleString()}</td>
+                    <td>
+                      <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                        <select id={`level-${ev.id}`} style={{padding: '0.25rem'}}>
+                          <option value="">-- Level --</option>
+                          <option value="1">1</option>
+                          <option value="2">2</option>
+                          <option value="3">3</option>
+                          <option value="4">4</option>
+                          <option value="5">5</option>
+                        </select>
+                        <button 
+                          className="primary" 
+                          style={{padding: '0.25rem 0.5rem'}}
+                          onClick={() => {
+                            const levelInput = document.getElementById(`level-${ev.id}`) as HTMLSelectElement;
+                            if (!levelInput.value) {
+                              setMessage({type: 'error', text: 'Please select a verified level to approve.'});
+                              return;
+                            }
+                            handleVerify(ev.id, 'verified', Number(levelInput.value));
+                          }}
+                        >
+                          Approve
+                        </button>
+                        <button 
+                          style={{padding: '0.25rem 0.5rem', backgroundColor: 'var(--surface-sunken)', color: 'red'}}
+                          onClick={() => handleVerify(ev.id, 'rejected')}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
