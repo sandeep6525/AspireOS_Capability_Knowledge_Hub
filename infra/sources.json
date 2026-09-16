@@ -1,5 +1,5 @@
 [
-  {"name":"World Bank","institution_type":"multilateral","jurisdiction":"global","homepage":"https://www.worldbank.org/","feed_url":"https://www.worldbank.org/en/news/all?format=rss","trust_tier":"official"},
+  {"name":"World Bank","institution_type":"multilateral","jurisdiction":"global","homepage":"https://www.worldbank.org/","feed_url":"https://search.worldbank.org/api/v2/news?format=xml","trust_tier":"official"},
   {"name":"International Monetary Fund","institution_type":"multilateral","jurisdiction":"global","homepage":"https://www.imf.org/","feed_url":"https://www.imf.org/en/News/RSS","trust_tier":"official"},
   {"name":"OECD","institution_type":"multilateral","jurisdiction":"global","homepage":"https://www.oecd.org/","feed_url":"https://www.oecd.org/newsroom/rss.xml","trust_tier":"official"},
   {"name":"UNESCO","institution_type":"un-agency","jurisdiction":"global","homepage":"https://www.unesco.org/","feed_url":null,"trust_tier":"official"},

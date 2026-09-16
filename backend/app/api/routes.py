@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,7 +9,7 @@ from ..models import User, ContentItem, Source, Skill, Assessment, LearningPlan,
 from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, SourceOut, AdminContentOut, AuditLogOut, SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut, UserUpdateIn, PasswordUpdateIn, EvidenceIn, EvidenceOut, EvidenceVerifyIn
 
 from ..services.recommendations import stakeholder_feed, skill_gap_summary
-from ..services.ingestion import ingest_source
+from ..services.ingestion import ingest_source, IngestionError
 from ..services.digests import build_digest
 from .deps import current_user, admin_user
 
@@ -132,10 +133,19 @@ def admin_content(status: str | None = None, db: Session = Depends(get_db), _: U
 def ingest(source_id: int, db: Session = Depends(get_db), user: User = Depends(admin_user)):
     source = db.get(Source, source_id)
     if not source: raise HTTPException(404, "Source not found")
-    created = ingest_source(db, source)
-    db.add(AuditLog(actor_id=user.id, action="ingest_source", target_type="source", target_id=source.id))
-    db.commit()
-    return {"created": created}
+    try:
+        created = ingest_source(db, source)
+        db.add(AuditLog(actor_id=user.id, action="ingest_source", target_type="source", target_id=source.id))
+        db.commit()
+        return {"created": created}
+    except IngestionError as e:
+        return JSONResponse(status_code=400, content={
+            "error": "Source fetch failed",
+            "source": source.name,
+            "stage": e.stage,
+            "status_code": e.status_code,
+            "message": e.message
+        })
 
 
 @router.patch("/admin/content/{content_id}/approve")
