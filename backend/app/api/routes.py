@@ -131,3 +131,23 @@ def approve(content_id: int, db: Session = Depends(get_db), user: User = Depends
 def admin_audit(db: Session = Depends(get_db), _: User = Depends(admin_user)):
     return db.scalars(select(AuditLog).order_by(AuditLog.timestamp.desc())).all()
 
+
+from ..schemas import SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut
+from ..services.analytics import get_skill_gaps_analytics, get_content_analytics, get_feedback_analytics, get_learning_plans_analytics
+
+@router.get('/analytics/skill-gaps', response_model=list[SkillGapAnalyticsOut])
+def analytics_skill_gaps(db: Session = Depends(get_db), _: User = Depends(admin_user)):
+    return get_skill_gaps_analytics(db)
+
+@router.get('/analytics/content', response_model=list[ContentAnalyticsOut])
+def analytics_content(db: Session = Depends(get_db), _: User = Depends(admin_user)):
+    return get_content_analytics(db)
+
+@router.get('/analytics/feedback', response_model=FeedbackAnalyticsOut)
+def analytics_feedback(db: Session = Depends(get_db), _: User = Depends(admin_user)):
+    return get_feedback_analytics(db)
+
+@router.get('/analytics/learning-plans', response_model=LearningPlanAnalyticsOut)
+def analytics_learning_plans(db: Session = Depends(get_db), _: User = Depends(admin_user)):
+    return get_learning_plans_analytics(db)
+

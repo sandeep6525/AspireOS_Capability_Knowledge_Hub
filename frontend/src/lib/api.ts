@@ -11,3 +11,9 @@ export async function login(email:string,password:string){const body=new URLSear
 export async function api<T>(path:string):Promise<T>{const token=localStorage.getItem('token');const r=await fetch(`${BASE}${path}`,{headers:{Authorization:`Bearer ${token}`}});if(!r.ok)throw new Error(`Request failed: ${r.status}`);return r.json()}
 export async function apiPut<T>(path:string, body: any):Promise<T>{const token=localStorage.getItem('token');const r=await fetch(`${BASE}${path}`,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(body)});if(!r.ok)throw new Error(`Request failed: ${r.status}`);return r.json()}
 export async function apiPost<T>(path:string, body: any):Promise<T>{const token=localStorage.getItem('token');const r=await fetch(`${BASE}${path}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(body)});if(!r.ok)throw new Error(`Request failed: ${r.status}`);return r.json()}
+
+export interface SkillGapAnalytics { skill_id: number; skill_name: string; average_gap: number; }
+export interface ContentAnalytics { status: string; count: number; }
+export interface FeedbackAnalytics { total_feedback: number; useful_feedback: number; usefulness_percentage: number | null; }
+export interface LearningPlanAnalytics { active_plan_count: number; average_progress: number | null; }
+

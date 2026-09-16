@@ -80,3 +80,26 @@ class AuditLogOut(BaseModel):
     target_id: int
     timestamp: datetime
 
+
+class SkillGapAnalyticsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    skill_id: int
+    skill_name: str
+    average_gap: float
+
+class ContentAnalyticsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    status: str
+    count: int
+
+class FeedbackAnalyticsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    total_feedback: int
+    useful_feedback: int
+    usefulness_percentage: float | None
+
+class LearningPlanAnalyticsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    active_plan_count: int
+    average_progress: float | None
+

@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react';import {Shell} from './components/Shell';import {Dashboard} from './pages/Dashboard';import {Updates} from './pages/Updates';import {Skills} from './pages/Skills';import {Assessments} from './pages/Assessments';import {SkillGaps} from './pages/SkillGaps';import {LearningPlans} from './pages/LearningPlans';import {Digests} from './pages/Digests';import {Feedback} from './pages/Feedback';import {Login} from './components/Login';import {AdminOverview, AdminSources, AdminContent, AdminAudit} from './pages/Admin';import {api} from './lib/api';import './style.css';
+import {useState, useEffect} from 'react';import {Shell} from './components/Shell';import {Dashboard} from './pages/Dashboard';import {Updates} from './pages/Updates';import {Skills} from './pages/Skills';import {Assessments} from './pages/Assessments';import {SkillGaps} from './pages/SkillGaps';import {LearningPlans} from './pages/LearningPlans';import {Digests} from './pages/Digests';import {Feedback} from './pages/Feedback';import {Login} from './components/Login';import {AdminOverview, AdminSources, AdminContent, AdminAudit} from './pages/Admin';import {Analytics} from './pages/Analytics';import {api} from './lib/api';import './style.css';
 export default function App(){
   const [tab,setTab]=useState('Overview');
   const [token, setToken]=useState<string | null>(localStorage.getItem('token'));
@@ -31,6 +31,8 @@ export default function App(){
       {tab === 'Sources' && <AdminSources />}
       {tab === 'Content Review' && <AdminContent />}
       {tab === 'Audit History' && <AdminAudit />}
+      {tab === 'Analytics' && <Analytics />}
+      {tab === 'Settings' && <div className="panel" style={{margin: '2rem'}}><h2>Settings</h2><p>Settings module is not implemented.</p></div>}
     </Shell>
   }
   
@@ -43,7 +45,6 @@ export default function App(){
     {tab === 'Learning Plans' && <LearningPlans />}
     {tab === 'Digests' && <Digests />}
     {tab === 'Feedback' && <Feedback />}
-    {tab === 'Analytics' && <div className="panel" style={{margin: '2rem'}}><h2>Analytics</h2><p>Analytics UI/API is not implemented yet.</p></div>}
     {tab === 'Settings' && <div className="panel" style={{margin: '2rem'}}><h2>Settings</h2><p>Settings module is not implemented.</p></div>}
   </Shell>
 }
