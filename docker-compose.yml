@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: aspireos
+      POSTGRES_USER: aspireos
+      POSTGRES_PASSWORD: aspireos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aspireos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - aspireos
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - aspireos
+
+  api:
+    build: ./backend
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./infra:/app/infra:ro
+    networks:
+      - aspireos
+
+  web:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    networks:
+      - aspireos
+
+volumes:
+  postgres_data:
+
+networks:
+  aspireos:
+    driver: bridge
