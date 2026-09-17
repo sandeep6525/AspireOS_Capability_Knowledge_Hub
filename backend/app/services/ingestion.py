@@ -13,10 +13,11 @@ BLOCKED_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0"}
 
 
 class IngestionError(Exception):
-    def __init__(self, message: str, stage: str, status_code: int = 500):
+    def __init__(self, message: str, error_code: str, status_code: int = 500, details: str = ""):
         self.message = message
-        self.stage = stage
+        self.error_code = error_code
         self.status_code = status_code
+        self.details = details
         super().__init__(self.message)
 
 
@@ -37,38 +38,41 @@ def safe_public_url(url: str) -> bool:
     return True
 
 
-def ingest_source(db: Session, source: Source) -> int:
+def ingest_source(db: Session, source: Source) -> dict:
     if not source.feed_url:
-        raise IngestionError("Source has no feed URL configured", "validation", 400)
+        raise IngestionError("Source has no feed URL configured", "FEED_NOT_CONFIGURED", 400)
     if not safe_public_url(source.feed_url):
-        raise IngestionError("Feed URL failed security validation (SSRF protection)", "validation", 403)
+        raise IngestionError("Feed URL failed security validation (SSRF protection)", "SSRF_BLOCKED", 400)
         
     def check_url(request: httpx.Request):
         if not safe_public_url(str(request.url)):
-            raise IngestionError(f"Unsafe redirect URL blocked: {request.url}", "redirect_validation", 403)
+            raise IngestionError(f"Unsafe redirect URL blocked: {request.url}", "REDIRECT_BLOCKED", 400)
             
     with httpx.Client(event_hooks={'request': [check_url]}) as client:
         try:
             response = client.get(source.feed_url, timeout=15, follow_redirects=True, headers={"User-Agent": "AspireOS-CapabilityHub/1.0"})
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            raise IngestionError(f"The source server rejected the request with HTTP {e.response.status_code}", "fetch", e.response.status_code)
+            raise IngestionError(f"The source server rejected the request with HTTP {e.response.status_code}", "REMOTE_HTTP_ERROR", 502, f"Upstream status: {e.response.status_code}")
+        except httpx.TimeoutException as e:
+            raise IngestionError(f"Timeout while connecting to source", "TIMEOUT", 504)
         except httpx.RequestError as e:
-            raise IngestionError(f"Network error while connecting to source: {str(e)}", "fetch", 502)
+            raise IngestionError(f"Network error while connecting to source: {str(e)}", "CONNECTION_FAILED", 502)
             
     content_type = response.headers.get("Content-Type", "").lower()
     allowed_types = ["application/rss+xml", "application/xml", "text/xml", "application/atom+xml"]
     if not any(t in content_type for t in allowed_types):
-        raise IngestionError(f"Invalid Content-Type returned by source: {content_type}", "mime_validation", 415)
+        raise IngestionError(f"Invalid Content-Type returned by source: {content_type}", "UNSUPPORTED_MIME_TYPE", 422)
         
     if source.id == 1 and b"<WbgNews" in response.content:
         return parse_wbg_news(db, source, response.content)
         
     feed = feedparser.parse(response.content)
     if feed.bozo and not feed.entries:
-        raise IngestionError("Failed to parse feed or feed is empty", "parse", 422)
+        raise IngestionError("Failed to parse feed or feed is empty", "PARSE_ERROR", 422)
 
     count = 0
+    discovered = len(feed.entries[:50])
     for entry in feed.entries[:50]:
         link = entry.get("link", "")
         if not safe_public_url(link) or db.scalar(select(ContentItem.id).where(ContentItem.canonical_url == link)):
@@ -82,19 +86,21 @@ def ingest_source(db: Session, source: Source) -> int:
                            resource_type="update", licence="link-only", status="pending_review", published_at=published))
         count += 1
     db.commit()
-    return count
+    return {"discovered": discovered, "created": count, "duplicates": discovered - count}
 
-def parse_wbg_news(db: Session, source: Source, response_content: bytes) -> int:
+def parse_wbg_news(db: Session, source: Source, response_content: bytes) -> dict:
     try:
         root = ET.fromstring(response_content)
     except ET.ParseError:
-        raise IngestionError("World Bank XML could not be parsed", "parse", 422)
+        raise IngestionError("World Bank XML could not be parsed", "PARSE_ERROR", 422)
     
     if root.tag != "WbgNews":
-        raise IngestionError("Expected WbgNews root element not found", "parse", 422)
+        raise IngestionError("Expected WbgNews root element not found", "PARSE_ERROR", 422)
         
     count = 0
-    for news in root.findall("news")[:50]:
+    news_items = root.findall("news")[:50]
+    discovered = len(news_items)
+    for news in news_items:
         link_elem = news.find("url")
         link = link_elem.text if link_elem is not None else ""
         if link.startswith("http://"):
@@ -136,5 +142,5 @@ def parse_wbg_news(db: Session, source: Source, response_content: bytes) -> int:
         count += 1
         
     db.commit()
-    return count
+    return {"discovered": discovered, "created": count, "duplicates": discovered - count}
 

@@ -1,22 +1,16 @@
 import { useEffect, useState } from 'react';
-import { api, apiPut, apiPost, Skill, AssessmentIn, Evidence } from '../lib/api';
+import { api, apiPost, Skill, Evidence as EvidenceType } from '../lib/api';
 
-export function Assessments() {
+export function Evidence() {
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [evidenceList, setEvidenceList] = useState<Evidence[]>([]);
+  const [evidenceList, setEvidenceList] = useState<EvidenceType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const [selectedSkill, setSelectedSkill] = useState<number | ''>('');
-  const [currentLevel, setCurrentLevel] = useState<number | ''>('');
-  const [targetLevel, setTargetLevel] = useState<number | ''>('');
-  const [confidence, setConfidence] = useState<number>(0.5);
-  const [assessments, setAssessments] = useState<any[]>([]);
-
   const [evidenceUrl, setEvidenceUrl] = useState('');
   const [evidenceDescription, setEvidenceDescription] = useState('');
 
-  const [submittingAssessment, setSubmittingAssessment] = useState(false);
   const [submittingEvidence, setSubmittingEvidence] = useState(false);
   const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
 
@@ -24,13 +18,11 @@ export function Assessments() {
     setLoading(true);
     Promise.all([
       api<Skill[]>('/skills'),
-      api<Evidence[]>('/evidence'),
-      api<any[]>('/skill-gaps')
+      api<EvidenceType[]>('/evidence')
     ])
-      .then(([skillsData, evidenceData, gapsData]) => {
+      .then(([skillsData, evidenceData]) => {
         setSkills(skillsData);
         setEvidenceList(evidenceData);
-        setAssessments(gapsData);
         setError(false);
       })
       .catch(() => setError(true))
@@ -40,54 +32,6 @@ export function Assessments() {
   useEffect(() => {
     fetchData();
   }, []);
-
-  useEffect(() => {
-    if (selectedSkill !== '') {
-      const skillName = skills.find(s => s.id === selectedSkill)?.name;
-      const existing = assessments.find(a => a.skill === skillName);
-      if (existing) {
-        setCurrentLevel(existing.current);
-        setTargetLevel(existing.target);
-        setConfidence(existing.confidence);
-      } else {
-        setCurrentLevel('');
-        setTargetLevel('');
-        setConfidence(0.5);
-      }
-    } else {
-      setCurrentLevel('');
-      setTargetLevel('');
-      setConfidence(0.5);
-    }
-  }, [selectedSkill, skills, assessments]);
-
-  const handleSaveAssessment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedSkill === '' || currentLevel === '' || targetLevel === '') {
-      setMessage({type: 'error', text: 'Please fill out all required fields.'});
-      return;
-    }
-
-    setSubmittingAssessment(true);
-    setMessage(null);
-
-    try {
-      await apiPut('/assessments', {
-        skill_id: Number(selectedSkill),
-        current_level: Number(currentLevel),
-        target_level: Number(targetLevel),
-        confidence: Number(confidence)
-      });
-      setMessage({type: 'success', text: 'Assessment saved successfully!'});
-
-      // Silently refresh assessments to keep local state in sync
-      api<any[]>('/skill-gaps').then(setAssessments).catch(() => {});
-    } catch (err: any) {
-      setMessage({type: 'error', text: err.message || 'Failed to submit assessment.'});
-    } finally {
-      setSubmittingAssessment(false);
-    }
-  };
 
   const handleSaveEvidence = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,16 +66,16 @@ export function Assessments() {
     <>
       <header>
         <div>
-          <p className="eyebrow">Assessments & Evidence</p>
-          <h1>Capability Profile</h1>
-          <p className="muted">Record self-assessments and submit evidence for verification.</p>
+          <p className="eyebrow">Evidence</p>
+          <h1>Capability Evidence</h1>
+          <p className="muted">Submit evidence for verification of your skills.</p>
         </div>
       </header>
 
-      <section className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-        {loading && <div className="panel span2"><p>Loading...</p></div>}
+      <section className="grid" style={{ gridTemplateColumns: '1fr', maxWidth: '800px', gap: '2rem', margin: '0' }}>
+        {loading && <div className="panel"><p>Loading...</p></div>}
         {error && !loading && (
-          <div className="panel span2" style={{ borderLeft: '4px solid red' }}>
+          <div className="panel" style={{ borderLeft: '4px solid red' }}>
             <h2>Could not load data</h2>
             <p>Please check your connection and try again.</p>
           </div>
@@ -140,49 +84,10 @@ export function Assessments() {
         {!loading && !error && (
           <>
             {message && (
-              <div className="panel span2" style={{ borderLeft: `4px solid ${message.type === 'success' ? 'green' : 'red'}` }}>
+              <div className="panel" style={{ borderLeft: `4px solid ${message.type === 'success' ? 'green' : 'red'}` }}>
                 <p style={{ color: message.type === 'success' ? 'green' : 'red', margin: 0 }}>{message.text}</p>
               </div>
             )}
-
-            <div className="panel">
-              <h2>Self-Assessment</h2>
-              <form onSubmit={handleSaveAssessment} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <label>
-                  Skill
-                  <select
-                    value={selectedSkill}
-                    onChange={e => setSelectedSkill(e.target.value === '' ? '' : Number(e.target.value))}
-                    required
-                  >
-                    <option value="">-- Select a Skill --</option>
-                    {skills.map(skill => (
-                      <option key={skill.id} value={skill.id}>{skill.name}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <label>
-                    Current Level (0-5)
-                    <input type="number" step="0.5" min="0" max="5" value={currentLevel} onChange={e => setCurrentLevel(e.target.value === '' ? '' : Number(e.target.value))} required />
-                  </label>
-                  <label>
-                    Target Level (0-5)
-                    <input type="number" step="0.5" min="0" max="5" value={targetLevel} onChange={e => setTargetLevel(e.target.value === '' ? '' : Number(e.target.value))} required />
-                  </label>
-                </div>
-
-                <label>
-                  Confidence ({confidence})
-                  <input type="range" min="0" max="1" step="0.1" value={confidence} onChange={e => setConfidence(Number(e.target.value))} style={{ width: '100%' }} />
-                </label>
-
-                <button type="submit" disabled={submittingAssessment} style={{ alignSelf: 'flex-start' }}>
-                  {submittingAssessment ? 'Saving...' : 'Save Assessment'}
-                </button>
-              </form>
-            </div>
 
             <div className="panel">
               <h2>Submit Evidence</h2>
@@ -217,7 +122,7 @@ export function Assessments() {
               </form>
             </div>
 
-            <div className="panel span2">
+            <div className="panel">
               <h2>Evidence History</h2>
               {evidenceList.length === 0 ? (
                 <p className="muted">No evidence submitted yet.</p>

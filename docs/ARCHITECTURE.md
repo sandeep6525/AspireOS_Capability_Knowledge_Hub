@@ -48,12 +48,12 @@ Suggested formula: `gap = max(0, target - current)`; weighted readiness is `sum(
 ## Security and governance
 
 - OIDC/MFA recommended for production; short-lived tokens and least-privilege RBAC.
-- Tenant scoping at repository/service layer; PostgreSQL row-level security recommended.
+- Tenant scoping implemented at the API query level. PostgreSQL row-level security recommended for future scale.
 - Consent-bound analytics, purpose limitation, retention schedules, export/delete workflows.
 - Allow-listed HTTPS sources, SSRF prevention, size/time limits, malware scanning, sanitisation.
 - Human approval, correction, withdrawal and immutable audit trail for published resources.
 - No unlicensed full-text republishing; prefer canonical links and licence-aware metadata.
-- WCAG 2.2 AA, low-bandwidth delivery, captions/transcripts and Indian-language localisation.
+- WCAG 2.2 AA, low-bandwidth delivery, captions/transcripts. Indian-language localisation implemented via `react-i18next` (English + 8 languages).
 - Map controls to India DPDP Act obligations and applicable organisational policy; obtain legal review before deployment.
 
 ## Scaling path

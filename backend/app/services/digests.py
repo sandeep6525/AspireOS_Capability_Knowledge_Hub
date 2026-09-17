@@ -11,7 +11,7 @@ def build_digest(db: Session, user: User, cadence: str) -> dict:
     if cadence not in WINDOWS:
         raise ValueError("cadence must be daily, weekly or monthly")
     since = datetime.now(timezone.utc) - timedelta(days=WINDOWS[cadence])
-    items = [i for i in stakeholder_feed(db, user, 100) if not i.published_at or i.published_at >= since]
+    items = [i for i in stakeholder_feed(db, user, 100) if (i.published_at or i.ingested_at) >= since]
     return {
         "cadence": cadence,
         "stakeholder": user.role,

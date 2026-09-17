@@ -28,7 +28,7 @@ export function SkillGaps() {
 
       <section className="grid" style={{ gridTemplateColumns: '1fr', maxWidth: '800px', margin: '0' }}>
         {loading && <div className="panel"><p>Loading gaps...</p></div>}
-        
+
         {error && !loading && (
           <div className="panel" style={{ borderLeft: '4px solid red' }}>
             <h2>Could not load skill gaps</h2>
@@ -55,32 +55,53 @@ export function SkillGaps() {
                     </strong>
                   </div>
                 </div>
-                
-                <div className="skill">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-                    <span>Current: <strong>{gap.current}</strong></span>
-                    <span>Target: <strong>{gap.target}</strong></span>
+
+                <div style={{ padding: '1rem', background: 'var(--bg)', borderRadius: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                    <div>
+                      <span className="muted" style={{ display: 'block', marginBottom: '0.25rem' }}>Self-assessed</span>
+                      <strong>{gap.current}</strong>
+                    </div>
+                    <div>
+                      <span className="muted" style={{ display: 'block', marginBottom: '0.25rem' }}>Verified</span>
+                      <strong>{gap.verified !== undefined && gap.verified !== null ? gap.verified : 'Not verified'}</strong>
+                    </div>
+                    <div>
+                      <span className="muted" style={{ display: 'block', marginBottom: '0.25rem' }}>Effective level</span>
+                      <strong>{gap.effective !== undefined && gap.effective !== null ? gap.effective : gap.current}</strong>
+                    </div>
+                    <div>
+                      <span className="muted" style={{ display: 'block', marginBottom: '0.25rem' }}>Target</span>
+                      <strong>{gap.target}</strong>
+                    </div>
                   </div>
-                  
+
                   <div className="bar" style={{ position: 'relative', background: 'var(--border)' }}>
-                    <i 
-                      style={{ 
-                        width: `${Math.min((gap.current / 5) * 100, 100)}%`, 
-                        background: 'var(--text)', 
-                        position: 'absolute', 
-                        zIndex: 2, 
-                        borderRight: '1px solid var(--bg)' 
-                      }} 
+                    <i
+                      style={{
+                        width: `${Math.min((gap.current / 5) * 100, 100)}%`,
+                        background: 'var(--text)',
+                        position: 'absolute',
+                        zIndex: 2,
+                        borderRight: '1px solid var(--bg)'
+                      }}
                     />
-                    <i 
-                      style={{ 
-                        width: `${Math.min((gap.target / 5) * 100, 100)}%`, 
-                        background: gap.gap > 0 ? 'rgba(255,100,100,0.2)' : 'rgba(100,255,100,0.2)', 
-                        position: 'absolute', 
-                        zIndex: 1 
-                      }} 
+                    <i
+                      style={{
+                        width: `${Math.min((gap.target / 5) * 100, 100)}%`,
+                        background: gap.gap > 0 ? 'rgba(255,100,100,0.2)' : 'rgba(100,255,100,0.2)',
+                        position: 'absolute',
+                        zIndex: 1
+                      }}
                     />
                   </div>
+
+                  {gap.gap === 0 && (
+                    <div style={{ marginTop: '1rem', color: 'var(--accent)', fontWeight: 600, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      Target achieved through verified evidence
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

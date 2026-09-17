@@ -22,3 +22,11 @@ def admin_user(user: User = Depends(current_user)) -> User:
         raise HTTPException(403, "Admin role required")
     return user
 
+
+def require_role(roles: list[str]):
+    def role_checker(user: User = Depends(current_user)) -> User:
+        if user.role not in roles:
+            raise HTTPException(403, f"One of the following roles is required: {', '.join(roles)}")
+        return user
+    return role_checker
+

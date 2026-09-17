@@ -4,14 +4,19 @@ import {api, apiPost, apiPut} from '../lib/api';
 export function AdminOverview() {
   const [sources, setSources] = useState<any[]>([]);
   const [content, setContent] = useState<any[]>([]);
+  const [audit, setAudit] = useState<any[]>([]);
   
   useEffect(() => {
-    api<any[]>('/admin/sources').then(setSources).catch(() => {});
-    api<any[]>('/admin/content').then(setContent).catch(() => {});
+    api<any[]>('/admin/sources').then(data => setSources(data || [])).catch(() => {});
+    api<any[]>('/admin/content').then(data => setContent(data || [])).catch(() => {});
+    api<any[]>('/admin/audit').then(data => setAudit(data || [])).catch(() => {});
   }, []);
   
   const pending = content.filter(c => c.status === 'pending_review');
   const approved = content.filter(c => c.status === 'approved');
+
+  const latestAudit = audit && audit.length > 0 ? audit[0] : null;
+  const displayAction = latestAudit && latestAudit.action ? latestAudit.action : 'N/A';
 
   return (
     <>
@@ -25,7 +30,7 @@ export function AdminOverview() {
         <div className="stat"><div><b>{sources.length}</b><small>Registered Sources</small></div></div>
         <div className="stat"><div><b>{pending.length}</b><small>Pending Review</small></div></div>
         <div className="stat"><div><b>{approved.length}</b><small>Approved Content</small></div></div>
-        <div className="stat"><div><b>N/A</b><small>Recent Audit Activity</small></div></div>
+        <div className="stat"><div><b style={{fontSize: latestAudit ? '1.2rem' : '2rem'}}>{displayAction}</b><small>Recent Audit Activity</small></div></div>
       </section>
     </>
   );
@@ -44,12 +49,48 @@ export function AdminSources() {
     setLoading(true);
     setResult(null);
     try {
-      const res = await apiPost(`/admin/sources/${id}/ingest`, {});
-      setResult(res);
+      const token = localStorage.getItem('token');
+      const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+      const r = await fetch(`${BASE}/admin/sources/${id}/ingest`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) {
+        setResult(data || { status: 'error', source_name: 'Unknown', error_code: 'UNKNOWN', message: `Request failed: ${r.status}` });
+      } else {
+        setResult(data);
+      }
     } catch (e: any) {
-      setResult({error: e.message});
+      setResult({ status: 'error', source_name: 'Unknown', error_code: 'NETWORK_ERROR', message: e.message });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const renderResult = () => {
+    if (!result) return null;
+    if (result.status === 'success') {
+      return (
+        <div style={{ padding: '1rem', marginBottom: '1rem', borderLeft: '4px solid green', backgroundColor: '#e8f5e9' }}>
+          <h4 style={{ color: 'green', margin: '0 0 0.5rem 0' }}>✓ Ingestion completed</h4>
+          <p style={{ margin: '0.25rem 0' }}><strong>Source:</strong> {result.source_name}</p>
+          <p style={{ margin: '0.25rem 0' }}><strong>New items:</strong> {result.created}</p>
+          <p style={{ margin: '0.25rem 0' }}><strong>Duplicates skipped:</strong> {result.duplicates}</p>
+        </div>
+      );
+    } else {
+      const isConfigError = result.error_code === 'FEED_NOT_CONFIGURED';
+      return (
+        <div style={{ padding: '1rem', marginBottom: '1rem', borderLeft: isConfigError ? '4px solid orange' : '4px solid red', backgroundColor: isConfigError ? '#fff3e0' : '#ffebee' }}>
+          <h4 style={{ color: isConfigError ? 'darkorange' : 'red', margin: '0 0 0.5rem 0' }}>
+            {isConfigError ? '⚠ Ingestion unavailable' : `❌ ${result.source_name || 'Source'} ingestion failed`}
+          </h4>
+          <p style={{ margin: '0.25rem 0' }}><strong>Reason:</strong> {result.message}</p>
+          {!isConfigError && <p style={{ margin: '0.25rem 0' }}><strong>Source:</strong> {result.source_name}</p>}
+          <p style={{ margin: '0.25rem 0' }}>No content was imported.</p>
+        </div>
+      );
     }
   };
 
@@ -62,7 +103,7 @@ export function AdminSources() {
         </div>
       </header>
       <section className="panel" style={{margin: '2rem'}}>
-        {result && <pre style={{background: '#eee', padding: '1rem'}}>{JSON.stringify(result, null, 2)}</pre>}
+        {renderResult()}
         <table style={{width: '100%', textAlign: 'left'}}>
           <thead><tr><th>ID</th><th>Name</th><th>Trust Tier</th><th>Action</th></tr></thead>
           <tbody>

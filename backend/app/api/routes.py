@@ -8,7 +8,7 @@ from ..core.security import verify_password, create_token, hash_password
 from ..models import User, ContentItem, Source, Skill, Assessment, LearningPlan, Feedback, AuditLog, Evidence
 from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, SourceOut, AdminContentOut, AuditLogOut, SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut, UserUpdateIn, PasswordUpdateIn, EvidenceIn, EvidenceOut, EvidenceVerifyIn
 
-from ..services.recommendations import stakeholder_feed, skill_gap_summary
+from ..services.recommendations import stakeholder_feed, skill_gap_summary, generate_dynamic_learning_plan
 from ..services.ingestion import ingest_source, IngestionError
 from ..services.digests import build_digest
 from .deps import current_user, admin_user
@@ -99,7 +99,8 @@ def gaps(db: Session = Depends(get_db), user: User = Depends(current_user)):
 
 @router.get("/learning-plans")
 def plans(db: Session = Depends(get_db), user: User = Depends(current_user)):
-    return db.scalars(select(LearningPlan).where(LearningPlan.user_id == user.id)).all()
+    plan = generate_dynamic_learning_plan(db, user)
+    return [plan] if plan else []
 
 
 @router.get("/digests/{cadence}")
@@ -134,17 +135,28 @@ def ingest(source_id: int, db: Session = Depends(get_db), user: User = Depends(a
     source = db.get(Source, source_id)
     if not source: raise HTTPException(404, "Source not found")
     try:
-        created = ingest_source(db, source)
+        result = ingest_source(db, source)
         db.add(AuditLog(actor_id=user.id, action="ingest_source", target_type="source", target_id=source.id))
         db.commit()
-        return {"created": created}
+        return {
+            "status": "success",
+            "source_id": source.id,
+            "source_name": source.name,
+            "discovered": result.get("discovered", 0),
+            "created": result.get("created", 0),
+            "duplicates": result.get("duplicates", 0)
+        }
     except IngestionError as e:
-        return JSONResponse(status_code=400, content={
-            "error": "Source fetch failed",
-            "source": source.name,
-            "stage": e.stage,
-            "status_code": e.status_code,
-            "message": e.message
+        db.add(AuditLog(actor_id=user.id, action="ingest_source_failed", target_type="source", target_id=source.id))
+        db.commit()
+        return JSONResponse(status_code=getattr(e, 'status_code', 500), content={
+            "status": "error",
+            "source_id": source.id,
+            "source_name": source.name,
+            "error_code": getattr(e, 'error_code', 'INGESTION_ERROR'),
+            "message": e.message,
+            "details": getattr(e, 'details', ''),
+            "created": 0
         })
 
 
@@ -158,28 +170,31 @@ def approve(content_id: int, db: Session = Depends(get_db), user: User = Depends
     return {"status": "approved"}
 
 @router.get('/admin/audit', response_model=list[AuditLogOut])
-def admin_audit(db: Session = Depends(get_db), _: User = Depends(admin_user)):
-    return db.scalars(select(AuditLog).order_by(AuditLog.timestamp.desc())).all()
+def admin_audit(db: Session = Depends(get_db), admin: User = Depends(admin_user)):
+    query = select(AuditLog)
+    if admin.tenant_id != "public":
+        query = query.join(User, AuditLog.actor_id == User.id).where(User.tenant_id == admin.tenant_id)
+    return db.scalars(query.order_by(AuditLog.timestamp.desc())).all()
 
 
 from ..schemas import SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut
 from ..services.analytics import get_skill_gaps_analytics, get_content_analytics, get_feedback_analytics, get_learning_plans_analytics
 
 @router.get('/analytics/skill-gaps', response_model=list[SkillGapAnalyticsOut])
-def analytics_skill_gaps(db: Session = Depends(get_db), _: User = Depends(admin_user)):
-    return get_skill_gaps_analytics(db)
+def analytics_skill_gaps(db: Session = Depends(get_db), admin: User = Depends(admin_user)):
+    return get_skill_gaps_analytics(db, admin.tenant_id)
 
 @router.get('/analytics/content', response_model=list[ContentAnalyticsOut])
-def analytics_content(db: Session = Depends(get_db), _: User = Depends(admin_user)):
-    return get_content_analytics(db)
+def analytics_content(db: Session = Depends(get_db), admin: User = Depends(admin_user)):
+    return get_content_analytics(db, admin.tenant_id)
 
 @router.get('/analytics/feedback', response_model=FeedbackAnalyticsOut)
-def analytics_feedback(db: Session = Depends(get_db), _: User = Depends(admin_user)):
-    return get_feedback_analytics(db)
+def analytics_feedback(db: Session = Depends(get_db), admin: User = Depends(admin_user)):
+    return get_feedback_analytics(db, admin.tenant_id)
 
 @router.get('/analytics/learning-plans', response_model=LearningPlanAnalyticsOut)
-def analytics_learning_plans(db: Session = Depends(get_db), _: User = Depends(admin_user)):
-    return get_learning_plans_analytics(db)
+def analytics_learning_plans(db: Session = Depends(get_db), admin: User = Depends(admin_user)):
+    return get_learning_plans_analytics(db, admin.tenant_id)
 
 @router.post("/evidence", response_model=EvidenceOut, status_code=201)
 def submit_evidence(body: EvidenceIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
@@ -203,9 +218,12 @@ def submit_evidence(body: EvidenceIn, db: Session = Depends(get_db), user: User 
 
 @router.get("/evidence", response_model=list[EvidenceOut])
 def get_evidence(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    query = select(Evidence)
     if user.role == "admin":
-        return db.scalars(select(Evidence).order_by(Evidence.created_at.desc())).all()
-    return db.scalars(select(Evidence).where(Evidence.user_id == user.id).order_by(Evidence.created_at.desc())).all()
+        if user.tenant_id != "public":
+            query = query.join(User, Evidence.user_id == User.id).where(User.tenant_id == user.tenant_id)
+        return db.scalars(query.order_by(Evidence.created_at.desc())).all()
+    return db.scalars(query.where(Evidence.user_id == user.id).order_by(Evidence.created_at.desc())).all()
 
 from datetime import datetime, timezone
 

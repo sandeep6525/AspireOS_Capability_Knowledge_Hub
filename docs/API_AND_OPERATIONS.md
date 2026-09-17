@@ -20,7 +20,7 @@ Interactive documentation is exposed at `/docs`; the OpenAPI document is `/opena
 
 ## Scheduled jobs
 
-Deploy scheduler/worker processes separately in production. Recommended cadence in `Asia/Kolkata`: source health every 30 minutes, approved-feed refresh hourly, daily digest at 06:30, weekly digest Monday 07:00, monthly impact report on day 1 at 08:00. Use per-user timezone and quiet hours for notifications.
+APScheduler is currently integrated directly within the FastAPI lifecycle (`main.py`) backed by `RedisJobStore` on the `redis` container. It runs the daily digest compilation natively at midnight. For enterprise deployment, it is recommended to split the APScheduler worker into a separate container. Recommended cadence in `Asia/Kolkata`: source health every 30 minutes, approved-feed refresh hourly, daily digest at 06:30, weekly digest Monday 07:00, monthly impact report on day 1 at 08:00. Use per-user timezone and quiet hours for notifications.
 
 ## Quality gates
 

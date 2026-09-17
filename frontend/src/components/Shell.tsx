@@ -1,8 +1,8 @@
-import {BookOpen, BrainCircuit, ChartNoAxesCombined, Home, Settings, Sparkles, LogOut, ClipboardCheck, Target, BookCheck, Inbox, MessageSquare} from 'lucide-react';
+import {BookOpen, BrainCircuit, ChartNoAxesCombined, Home, Settings, Sparkles, LogOut, ClipboardCheck, Target, BookCheck, Inbox, MessageSquare, FileText} from 'lucide-react';
 import {useState, useEffect} from 'react';
 
 export function Shell({children,tab,setTab,onLogout,user}:{children:React.ReactNode;tab:string;setTab:(x:string)=>void;onLogout:()=>void,user:any}) {
-  const learnerNav=[['Overview',Home],['Updates',BookOpen],['Skills',BrainCircuit],['Assessments',ClipboardCheck],['Skill Gaps',Target],['Learning Plans',BookCheck],['Digests',Inbox],['Feedback',MessageSquare],['Analytics',ChartNoAxesCombined],['Settings',Settings]] as const;
+  const learnerNav=[['Overview',Home],['Updates',BookOpen],['Skills',BrainCircuit],['Assessments',ClipboardCheck],['Evidence',FileText],['Skill Gaps',Target],['Learning Plans',BookCheck],['Digests',Inbox],['Feedback',MessageSquare],['Analytics',ChartNoAxesCombined],['Settings',Settings]] as const;
   const adminNav=[['Overview',Home],['Sources',BookOpen],['Content Review',ClipboardCheck],['Evidence Review',BookCheck],['Audit History',Target],['Analytics',ChartNoAxesCombined]] as const;
   
   const nav = user.role === 'admin' ? adminNav : learnerNav;

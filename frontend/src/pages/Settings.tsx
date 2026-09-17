@@ -1,7 +1,10 @@
 import {useState, useEffect} from 'react';
 import {api, apiPatch, apiPost, User} from '../lib/api';
 
+import { useTranslation } from 'react-i18next';
+
 export function Settings() {
+  const { i18n } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   
   // Profile state
@@ -32,6 +35,7 @@ export function Settings() {
         setUser(u);
         setName(u.name || '');
         setLocale(u.locale || 'en');
+        i18n.changeLanguage(u.locale || 'en');
         setInterestsText(u.interests?.join(', ') || '');
         setConsentAnalytics(u.consent_analytics || false);
       })
@@ -49,6 +53,7 @@ export function Settings() {
     setMessage(null);
     try {
       await apiPatch('/me', {name, locale});
+      i18n.changeLanguage(locale);
       setMessage({type: 'success', text: 'Profile updated successfully'});
       fetchUser();
     } catch (e: any) {
@@ -58,6 +63,7 @@ export function Settings() {
     }
   };
 
+  // ... (rest is same down to render)
   const handleSavePreferences = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingPrefs(true);
@@ -125,9 +131,14 @@ export function Settings() {
               Locale
               <select value={locale} onChange={e => setLocale(e.target.value)}>
                 <option value="en">English (en)</option>
-                <option value="fr">French (fr)</option>
-                <option value="es">Spanish (es)</option>
-                <option value="de">German (de)</option>
+                <option value="hi">Hindi (hi)</option>
+                <option value="ta">Tamil (ta)</option>
+                <option value="te">Telugu (te)</option>
+                <option value="kn">Kannada (kn)</option>
+                <option value="ml">Malayalam (ml)</option>
+                <option value="bn">Bengali (bn)</option>
+                <option value="mr">Marathi (mr)</option>
+                <option value="gu">Gujarati (gu)</option>
               </select>
             </label>
             <button type="submit" disabled={savingProfile} style={{alignSelf: 'flex-start'}}>
