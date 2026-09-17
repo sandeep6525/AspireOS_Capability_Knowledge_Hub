@@ -38,13 +38,13 @@ export default function App(){
   }
   
   return <Shell user={user} tab={tab} setTab={setTab} onLogout={handleLogout}>
-    {tab === 'Overview' && <Dashboard tab={tab}/>}
+    {tab === 'Overview' && <Dashboard tab={tab} setTab={setTab} />}
     {tab === 'Updates' && <Updates />}
     {tab === 'Skills' && <Skills />}
     {tab === 'Assessments' && <Assessments />}
     {tab === 'Evidence' && <Evidence />}
     {tab === 'Skill Gaps' && <SkillGaps />}
-    {tab === 'Learning Plans' && <LearningPlans />}
+    {tab === 'Learning Plans' && <LearningPlans setTab={setTab} />}
     {tab === 'Digests' && <Digests />}
     {tab === 'Feedback' && <Feedback />}
     {tab === 'Settings' && <Settings />}

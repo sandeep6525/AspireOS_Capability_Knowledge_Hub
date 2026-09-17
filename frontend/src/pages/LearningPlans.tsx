@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, LearningPlan } from '../lib/api';
 
-export function LearningPlans() {
+export function LearningPlans({setTab}: {setTab: (t: string) => void}) {
   const [plans, setPlans] = useState<LearningPlan[]>([]);
   const [allGaps, setAllGaps] = useState<any[]>([]);
   const [gaps, setGaps] = useState<any[]>([]);
@@ -187,7 +187,7 @@ export function LearningPlans() {
                           Once you have completed learning activities, submit evidence to have your skills verified by an admin.
                         </p>
                       </div>
-                        <button className="primary" onClick={() => window.location.reload()}>Go to Evidence Review</button>
+                        <button className="primary" onClick={() => setTab('Evidence')}>Go to Evidence</button>
                     </div>
                   </>
                 )}
