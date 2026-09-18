@@ -1,6 +1,7 @@
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import String, Text, DateTime, Float, ForeignKey, JSON, Boolean, UniqueConstraint, Integer
+import uuid
+from sqlalchemy import String, Text, DateTime, Float, ForeignKey, JSON, Boolean, UniqueConstraint, Integer, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .core.db import Base
 
@@ -17,7 +18,7 @@ class Role(str, enum.Enum):
 
 class User(Base):
     __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[str] = mapped_column(String(64), default="public", index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
@@ -72,7 +73,7 @@ class Assessment(Base):
     __tablename__ = "assessments"
     __table_args__ = (UniqueConstraint("user_id", "skill_id", name="uq_user_skill"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     skill_id: Mapped[int] = mapped_column(ForeignKey("skills.id"), index=True)
     current_level: Mapped[float] = mapped_column(Float)
     target_level: Mapped[float] = mapped_column(Float)
@@ -86,13 +87,13 @@ class Assessment(Base):
 class Evidence(Base):
     __tablename__ = "evidence"
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     skill_id: Mapped[int] = mapped_column(ForeignKey("skills.id"), index=True)
     content_id: Mapped[int | None] = mapped_column(ForeignKey("content_items.id"), nullable=True)
     url: Mapped[str] = mapped_column(String(1000))
     description: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
-    verifier_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    verifier_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     skill: Mapped[Skill] = relationship()
@@ -101,7 +102,7 @@ class Evidence(Base):
 class LearningPlan(Base):
     __tablename__ = "learning_plans"
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     title: Mapped[str] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(String(24), default="active")
     milestones: Mapped[list] = mapped_column(JSON, default=list)
@@ -111,7 +112,7 @@ class LearningPlan(Base):
 class Feedback(Base):
     __tablename__ = "feedback"
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     content_id: Mapped[int | None] = mapped_column(ForeignKey("content_items.id"), nullable=True)
     useful: Mapped[bool] = mapped_column(Boolean)
     note: Mapped[str] = mapped_column(String(2000), default="")
@@ -121,7 +122,7 @@ class Feedback(Base):
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
-    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     action: Mapped[str] = mapped_column(String(100), index=True)
     target_type: Mapped[str] = mapped_column(String(100))
     target_id: Mapped[int] = mapped_column(Integer)

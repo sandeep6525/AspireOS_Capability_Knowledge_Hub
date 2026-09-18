@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, ConfigDict
 
@@ -14,7 +15,7 @@ class TokenOut(BaseModel):
 
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int
+    id: uuid.UUID
     email: EmailStr
     name: str
     role: str
@@ -59,6 +60,14 @@ class FeedbackIn(BaseModel):
     useful: bool
     note: str = Field(default="", max_length=2000)
 
+class FeedbackOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    content_id: int | None
+    useful: bool
+    note: str
+    created_at: datetime
+
 class SourceOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -86,7 +95,7 @@ class AdminContentOut(BaseModel):
 class AuditLogOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    actor_id: int | None
+    actor_id: uuid.UUID | None
     action: str
     target_type: str
     target_id: int
@@ -128,13 +137,13 @@ class EvidenceVerifyIn(BaseModel):
 class EvidenceOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    user_id: int
+    user_id: uuid.UUID
     skill_id: int
     content_id: int | None
     url: str
     description: str
     status: str
-    verifier_id: int | None
+    verifier_id: uuid.UUID | None
     verified_at: datetime | None
     created_at: datetime
 

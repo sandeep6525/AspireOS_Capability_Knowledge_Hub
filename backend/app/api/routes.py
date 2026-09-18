@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..core.db import get_db
 from ..core.security import verify_password, create_token, hash_password
 from ..models import User, ContentItem, Source, Skill, Assessment, LearningPlan, Feedback, AuditLog, Evidence
-from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, SourceOut, AdminContentOut, AuditLogOut, SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut, UserUpdateIn, PasswordUpdateIn, EvidenceIn, EvidenceOut, EvidenceVerifyIn
+from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, FeedbackOut, SourceOut, AdminContentOut, AuditLogOut, SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut, UserUpdateIn, PasswordUpdateIn, EvidenceIn, EvidenceOut, EvidenceVerifyIn
 
 from ..services.recommendations import stakeholder_feed, skill_gap_summary, generate_dynamic_learning_plan
 from ..services.ingestion import ingest_source, IngestionError
@@ -19,10 +19,10 @@ router = APIRouter(prefix="/api/v1")
 @router.post("/auth/login", response_model=TokenOut)
 async def login(request: Request, db: Session = Depends(get_db)):
     content_type = request.headers.get("content-type", "")
-    
+
     email = None
     password = None
-    
+
     if "application/x-www-form-urlencoded" in content_type:
         form = await request.form()
         email = form.get("username")
@@ -34,14 +34,14 @@ async def login(request: Request, db: Session = Depends(get_db)):
             password = json_data.get("password")
         except Exception:
             raise HTTPException(422, "Invalid JSON body")
-            
+
     if not email or not password:
         raise HTTPException(422, "Email (username) and password are required")
-        
+
     user = db.scalar(select(User).where(User.email == email))
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(401, "Incorrect email or password")
-    return TokenOut(access_token=create_token(user.email, user.role))
+    return TokenOut(access_token=create_token(str(user.id), user.role))
 
 
 @router.get("/me", response_model=UserOut)
@@ -111,10 +111,13 @@ def digest(cadence: str, db: Session = Depends(get_db), user: User = Depends(cur
         raise HTTPException(422, str(exc)) from exc
 
 
-@router.post("/feedback", status_code=201)
+@router.post("/feedback", status_code=201, response_model=FeedbackOut)
 def feedback(body: FeedbackIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    db.add(Feedback(user_id=user.id, **body.model_dump())); db.commit()
-    return {"status": "recorded"}
+    fb = Feedback(user_id=user.id, **body.model_dump())
+    db.add(fb)
+    db.commit()
+    db.refresh(fb)
+    return fb
 
 
 @router.get("/admin/sources", response_model=list[SourceOut])
@@ -202,7 +205,7 @@ def submit_evidence(body: EvidenceIn, db: Session = Depends(get_db), user: User 
         raise HTTPException(404, "Skill not found")
     if body.content_id and not db.get(ContentItem, body.content_id):
         raise HTTPException(404, "Content item not found")
-        
+
     evidence = Evidence(
         user_id=user.id,
         skill_id=body.skill_id,
@@ -232,11 +235,11 @@ def verify_evidence(evidence_id: int, body: EvidenceVerifyIn, db: Session = Depe
     evidence = db.get(Evidence, evidence_id)
     if not evidence:
         raise HTTPException(404, "Evidence not found")
-        
+
     evidence.status = body.status
     evidence.verifier_id = admin.id
     evidence.verified_at = datetime.now(timezone.utc)
-    
+
     if body.status == "verified" and body.verified_level is not None:
         assessment = db.scalar(select(Assessment).where(Assessment.user_id == evidence.user_id, Assessment.skill_id == evidence.skill_id))
         if assessment:
@@ -244,7 +247,7 @@ def verify_evidence(evidence_id: int, body: EvidenceVerifyIn, db: Session = Depe
         else:
             assessment = Assessment(user_id=evidence.user_id, skill_id=evidence.skill_id, current_level=0, target_level=body.verified_level, verified_level=body.verified_level)
             db.add(assessment)
-            
+
     log = AuditLog(
         actor_id=admin.id,
         action=f"{body.status}_evidence",
