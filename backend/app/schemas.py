@@ -68,6 +68,16 @@ class FeedbackOut(BaseModel):
     note: str
     created_at: datetime
 
+class AdminFeedbackOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    content_id: int | None
+    useful: bool
+    note: str
+    created_at: datetime
+    learner_name: str
+    learner_email: str
+
 class SourceOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

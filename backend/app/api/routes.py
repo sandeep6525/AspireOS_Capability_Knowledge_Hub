@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..core.db import get_db
 from ..core.security import verify_password, create_token, hash_password
 from ..models import User, ContentItem, Source, Skill, Assessment, LearningPlan, Feedback, AuditLog, Evidence
-from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, FeedbackOut, SourceOut, AdminContentOut, AuditLogOut, SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut, UserUpdateIn, PasswordUpdateIn, EvidenceIn, EvidenceOut, EvidenceVerifyIn
+from ..schemas import LoginIn, TokenOut, UserOut, ContentOut, AssessmentIn, FeedbackIn, FeedbackOut, AdminFeedbackOut, SourceOut, AdminContentOut, AuditLogOut, SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut, UserUpdateIn, PasswordUpdateIn, EvidenceIn, EvidenceOut, EvidenceVerifyIn
 
 from ..services.recommendations import stakeholder_feed, skill_gap_summary, generate_dynamic_learning_plan
 from ..services.ingestion import ingest_source, IngestionError
@@ -178,6 +178,26 @@ def admin_audit(db: Session = Depends(get_db), admin: User = Depends(admin_user)
     if admin.tenant_id != "public":
         query = query.join(User, AuditLog.actor_id == User.id).where(User.tenant_id == admin.tenant_id)
     return db.scalars(query.order_by(AuditLog.timestamp.desc())).all()
+@router.get("/admin/feedback", response_model=list[AdminFeedbackOut])
+def admin_feedback(db: Session = Depends(get_db), admin: User = Depends(admin_user)):
+    query = select(Feedback, User.name.label("learner_name"), User.email.label("learner_email")).join(User, Feedback.user_id == User.id)
+    if admin.tenant_id != "public":
+        query = query.where(User.tenant_id == admin.tenant_id)
+
+    results = db.execute(query.order_by(Feedback.created_at.desc())).all()
+    out = []
+    for fb, name, email in results:
+        out.append({
+            "id": fb.id,
+            "content_id": fb.content_id,
+            "useful": fb.useful,
+            "note": fb.note,
+            "created_at": fb.created_at,
+            "learner_name": name,
+            "learner_email": email
+        })
+    return out
+
 
 
 from ..schemas import SkillGapAnalyticsOut, ContentAnalyticsOut, FeedbackAnalyticsOut, LearningPlanAnalyticsOut
