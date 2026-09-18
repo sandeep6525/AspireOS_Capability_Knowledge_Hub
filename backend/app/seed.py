@@ -10,16 +10,16 @@ def seed(db: Session):
         return
 
     admin = User(email="admin@aspireos.example.com", password_hash=hash_password("ChangeMe123!"), name="AspireOS Admin", role="admin")
-    
+
     learner1 = User(email="learner1@aspireos.example.com", password_hash=hash_password("ChangeMe123!"), name="Demo Learner One",
                 role="learner", locale="en", interests=["digital-economy", "ai", "employability"])
-    
+
     learner2 = User(email="learner2@aspireos.example.com", password_hash=hash_password("ChangeMe123!"), name="Demo Learner Two",
                 role="learner", locale="en", interests=["data", "analytics", "business"])
-    
+
     learner3 = User(email="learner3@aspireos.example.com", password_hash=hash_password("ChangeMe123!"), name="Demo Learner Three",
                 role="learner", locale="en", interests=["leadership", "communication", "management"])
-                
+
     db.add_all([admin, learner1, learner2, learner3]); db.flush()
 
     source_path = Path("/app/infra/sources.json")
@@ -38,7 +38,7 @@ def seed(db: Session):
         Skill(code="COM-01", name="Professional Communication", category="Human", description="Communicate clearly across stakeholders"),
     ]
     db.add_all(skills); db.flush()
-    
+
     content_items = []
     if sources:
         content1 = ContentItem(source_id=sources[0].id, canonical_url="https://www.worldbank.org/en/publication/wdr2021",
