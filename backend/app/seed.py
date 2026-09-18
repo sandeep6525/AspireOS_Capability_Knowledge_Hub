@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from .models import User, Source, Skill, ContentItem, Assessment, LearningPlan, Evidence
+from .models import User, Source, Skill, ContentItem, Assessment, LearningPlan, Evidence, AuditLog
 from .core.security import hash_password
 
 def seed(db: Session):
@@ -41,6 +41,9 @@ def seed(db: Session):
 
     content_items = []
     if sources:
+        # Simulate source ingestion audit event
+        db.add(AuditLog(actor_id=admin.id, action="ingest_source", target_type="source", target_id=sources[0].id))
+
         content1 = ContentItem(source_id=sources[0].id, canonical_url="https://www.worldbank.org/en/publication/wdr2021",
                            title="World Development Report 2021: Data for Better Lives",
                            abstract="A public institutional resource on the development value, governance and safeguards of data.",
@@ -48,6 +51,10 @@ def seed(db: Session):
                            resource_type="report", licence="link-only", status="approved")
         db.add(content1); db.flush()
         content_items.append(content1)
+
+        # Simulate content approval audit event
+        db.add(AuditLog(actor_id=admin.id, action="approve_content", target_type="content", target_id=content1.id))
+        db.flush()
 
     # Learner 1 data
     for skill, current, target in [(skills[0], 2.5, 4), (skills[3], 3.0, 4)]:
@@ -73,6 +80,9 @@ def seed(db: Session):
         db.add(Assessment(user_id=learner3.id, skill_id=skill.id, current_level=current, target_level=target, verified_level=verified, confidence=.9))
     db.add(LearningPlan(user_id=learner3.id, title="Advanced Communication", milestones=[
         {"title": "Public speaking workshop", "status": "done"}], progress=100))
-    db.add(Evidence(user_id=learner3.id, skill_id=skills[4].id, content_id=None, url="https://example.com/evidence3", description="Learner 3 Comm Badge", status="verified", verifier_id=admin.id))
+    ev3 = Evidence(user_id=learner3.id, skill_id=skills[4].id, content_id=None, url="https://example.com/evidence3", description="Learner 3 Comm Badge", status="verified", verifier_id=admin.id)
+    db.add(ev3); db.flush()
+    # Simulate evidence verification audit event
+    db.add(AuditLog(actor_id=admin.id, action="verified_evidence", target_type="evidence", target_id=ev3.id))
 
     db.commit()
